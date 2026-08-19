@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Chapman Boat Program — Document Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#0A2342; --navy-mid:#1A3A5C; --brass:#C8922A; --signal-red:#C1272D;
+  --sea:#3A7CA5; --paper:#FBFAF7; --card:#FFFFFF; --line:#DDD8CE;
+  --ink:#14202E; --ink-muted:#5C6873; --ok:#2E7D5B;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'IBM Plex Sans',sans-serif;background:var(--paper);color:var(--ink);font-size:16px;line-height:1.45;padding-bottom:env(safe-area-inset-bottom)}
+header{background:var(--navy);color:#fff;padding:14px 20px}
+header h1{font-family:'IBM Plex Serif',serif;font-weight:700;font-size:1.15rem}
+header p{font-size:.8rem;color:#C9D3DF;margin-top:2px}
+.wrap{max-width:1100px;margin:0 auto;padding:16px}
+.steps{display:flex;gap:8px;margin:4px 0 16px}
+.step{flex:1;padding:10px 12px;border:1px solid var(--line);background:var(--card);border-radius:6px;font-size:.85rem;color:var(--ink-muted);cursor:pointer;min-height:44px}
+.step.active{border-color:var(--brass);color:var(--ink);box-shadow:inset 0 -3px 0 var(--brass)}
+.step b{display:block;color:var(--navy);font-size:.9rem}
+.screen{display:none}.screen.active{display:block}
+.choice{display:flex;gap:16px;flex-wrap:wrap;margin-top:8px}
+.choice button{flex:1;min-width:260px;min-height:110px;background:var(--card);border:2px solid var(--line);border-radius:8px;padding:18px;cursor:pointer;text-align:left;font-family:inherit;font-size:1rem}
+.choice button:hover{border-color:var(--sea)}
+.choice button.sel{border-color:var(--brass);background:#FDF8EE}
+.choice b{font-family:'IBM Plex Serif',serif;color:var(--navy);font-size:1.1rem;display:block;margin-bottom:6px}
+.choice span{color:var(--ink-muted);font-size:.85rem}
+fieldset{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:14px 16px 16px;margin-bottom:14px}
+legend{font-family:'IBM Plex Serif',serif;font-weight:600;color:var(--navy);padding:0 6px;font-size:.95rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px 14px}
+label{display:block;font-size:.78rem;color:var(--ink-muted);margin-bottom:3px;font-weight:500}
+input,select{width:100%;min-height:44px;padding:8px 10px;font-size:16px;font-family:inherit;border:1px solid var(--line);border-radius:5px;background:#fff;color:var(--ink)}
+input:focus,select:focus{outline:2px solid var(--sea);outline-offset:-1px}
+.mono{font-family:'IBM Plex Mono',monospace;font-weight:500}
+.calc{background:var(--navy);color:#fff;border-radius:8px;padding:14px 16px;margin-bottom:14px}
+.calc h3{font-family:'IBM Plex Serif',serif;font-size:.95rem;margin-bottom:8px;color:#E8DFC9}
+.calcrow{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--navy-mid);font-size:.9rem}
+.calcrow:last-child{border-bottom:none}
+.calcrow .amt{font-family:'IBM Plex Mono',monospace;font-weight:600;color:var(--brass)}
+.calcrow.total .amt{color:#fff}
+.warn{color:var(--signal-red);font-size:.82rem;margin-top:6px;display:none}
+.btnbar{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0}
+.btn{min-height:44px;padding:10px 20px;border-radius:6px;border:none;cursor:pointer;font-family:inherit;font-size:.95rem;font-weight:600}
+.btn.primary{background:var(--brass);color:var(--navy)}
+.btn.secondary{background:var(--card);border:1px solid var(--line);color:var(--navy)}
+.btn.red{background:var(--signal-red);color:#fff}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.tab{min-height:44px;padding:8px 14px;border:1px solid var(--line);background:var(--card);border-radius:6px 6px 0 0;cursor:pointer;font-family:inherit;font-size:.85rem;color:var(--ink-muted)}
+.tab.active{border-bottom:3px solid var(--brass);color:var(--navy);font-weight:600}
+#docPane{background:#fff;border:1px solid var(--line);border-radius:0 6px 6px 6px;padding:40px 48px;max-height:70vh;overflow-y:auto}
+.doc{font-family:'Times New Roman',Times,serif;font-size:11.5pt;color:#000;line-height:1.4}
+.doc h1{font-size:14pt;text-align:left;margin-bottom:4pt;font-weight:bold}
+.doc h2{font-size:12pt;margin:12pt 0 5pt;font-weight:bold}
+.doc h3{font-size:11.5pt;margin:9pt 0 4pt;font-weight:bold}
+.doc p{margin:0 0 7pt}
+.doc ul{margin:0 0 7pt 22pt}
+.doc li{margin-bottom:3pt}
+.doc table{border-collapse:collapse;width:100%;margin:0 0 8pt}
+.doc td,.doc th{border:1px solid #000;padding:4pt 6pt;font-size:10.5pt;text-align:left;vertical-align:top}
+.doc .nb td,.doc .nb th{border:none;padding:2pt 4pt}
+.doc .sig{margin-top:14pt}
+.doc .bl{font-family:'Times New Roman',serif;letter-spacing:1px}
+.doc .center{text-align:center}
+.doc .cbx{font-size:12pt}
+.notice{background:#FDF3E3;border:1px solid var(--brass);border-radius:6px;padding:10px 12px;font-size:.82rem;color:var(--ink);margin-bottom:12px}
+footer{padding:14px 20px;color:var(--ink-muted);font-size:.75rem;text-align:center}
+@media print{
+  body{background:#fff;padding:0}
+  header,.wrap>*:not(#screen3),.steps,.tabs,.btnbar,.notice,footer{display:none!important}
+  .screen{display:none!important}
+  #screen3.active{display:block!important}
+  #docPane{border:none;padding:0;max-height:none;overflow:visible;border-radius:0}
+  .doc{font-size:11pt}
+  @page{margin:1in}
+}
+@media(max-width:600px){#docPane{padding:20px 16px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Chapman School of Seamanship — Boat Program Document Generator</h1>
+  <p>Enter the deal once. The tool computes every amount and fills the correct forms.</p>
+</header>
+<div class="wrap">
+  <div class="steps">
+    <div class="step active" id="stepBtn1" onclick="goStep(1)"><b>1. Transaction Type</b>Lease or Purchase</div>
+    <div class="step" id="stepBtn2" onclick="goStep(2)"><b>2. Deal Information</b>One entry screen</div>
+    <div class="step" id="stepBtn3" onclick="goStep(3)"><b>3. Documents</b>Print / Word</div>
+  </div>
+
+  <!-- SCREEN 1 -->
+  <div class="screen active" id="screen1">
+    <div class="choice">
+      <button id="chLease" onclick="setType('lease')"><b>Lease-Purchase</b><span>36-month As-Is, Where-Is Lease-Purchase: 30% down, 1% of Agreed Value monthly, 34% residual, $10,000 deposit. Generates the Agreement, Exhibit A payment schedule, and the Pre-Lease Checklist.</span></button>
+      <button id="chPurchase" onclick="setType('purchase')"><b>Outright Purchase</b><span>As-Is, Where-Is sale: 10% deposit at signing, balance at closing. Generates the Purchase Agreement and Exhibit 1 equipment inventory.</span></button>
+    </div>
+  </div>
+
+  <!-- SCREEN 2 -->
+  <div class="screen" id="screen2">
+    <div class="notice">Leave any unknown field blank — it prints as a fill-in line. Nothing entered here leaves this page until you print or download. Use <b>Save Deal File</b> to keep a copy of the entered data.</div>
+    <fieldset><legend>Counterparty</legend>
+      <div class="grid">
+        <div><label>Full legal name (person or entity)</label><input id="cpName" oninput="calc()"></div>
+        <div><label>Entity type / "an individual"</label><input id="cpType" placeholder="e.g., a Florida LLC / an individual" oninput="calc()"></div>
+        <div><label>Address</label><input id="cpAddr" oninput="calc()"></div>
+        <div><label>Email for notices</label><input id="cpEmail" oninput="calc()"></div>
+      </div>
+    </fieldset>
+    <fieldset><legend>Vessel</legend>
+      <div class="grid">
+        <div><label>Make / Model</label><input id="vMake" oninput="calc()"></div>
+        <div><label>Year</label><input id="vYear" class="mono" oninput="calc()"></div>
+        <div><label>Vessel name</label><input id="vName" oninput="calc()"></div>
+        <div><label>HIN</label><input id="vHin" class="mono" oninput="calc()"></div>
+        <div><label>Title regime</label><select id="vRegime" onchange="calc()"><option value="">— select —</option><option value="uscg">USCG documented</option><option value="fl">Florida titled</option></select></div>
+        <div><label>USCG Official No. (if documented)</label><input id="vDoc" class="mono" oninput="calc()"></div>
+        <div><label>FL Title / Reg No. (if state titled)</label><input id="vTitle" class="mono" oninput="calc()"></div>
+        <div><label>Length (feet)</label><input id="vLen" class="mono" oninput="calc()"></div>
+        <div><label>Current location (Delivery Location)</label><input id="vLoc" oninput="calc()"></div>
+      </div>
+    </fieldset>
+    <fieldset><legend>Deal Terms</legend>
+      <div class="grid">
+        <div><label>Effective date</label><input id="dEff" type="date" onchange="calc()"></div>
+        <div id="fLeaseVal"><label>Agreed Value ($)</label><input id="dValue" class="mono" inputmode="decimal" oninput="calc()"></div>
+        <div id="fLeaseStart"><label>Commencement date</label><input id="dStart" type="date" onchange="calc()"></div>
+        <div id="fPurchClose" style="display:none"><label>Closing date (on or before)</label><input id="dClose" type="date" onchange="calc()"></div>
+        <div id="fPurchRemove" style="display:none"><label>Removal period after closing (days)</label><input id="dRemove" class="mono" inputmode="numeric" value="10" oninput="calc()"></div>
+        <div id="fPurchStore" style="display:none"><label>Storage after removal period ($/day)</label><input id="dStorage" class="mono" inputmode="decimal" value="75" oninput="calc()"></div>
+        <div id="fPurchBroker" style="display:none"><label>Broker (or "None")</label><input id="dBroker" value="None" oninput="calc()"></div>
+      </div>
+    </fieldset>
+    <fieldset id="fEquip" style="display:none"><legend>Exhibit 1 — Equipment Inventory (loose equipment, tenders, personal property)</legend>
+      <div id="equipRows"></div>
+      <button class="btn secondary" onclick="addEquip()">+ Add item</button>
+    </fieldset>
+    <div class="calc" id="calcBox"></div>
+    <div class="btnbar">
+      <button class="btn primary" onclick="goStep(3)">Generate Documents →</button>
+      <button class="btn secondary" onclick="saveDeal()">Save Deal File (.json)</button>
+      <button class="btn secondary" onclick="document.getElementById('loadFile').click()">Load Deal File</button>
+      <input type="file" id="loadFile" accept=".json" style="display:none" onchange="loadDeal(event)">
+      <button class="btn red" onclick="clearAll()">Clear All</button>
+    </div>
+  </div>
+
+  <!-- SCREEN 3 -->
+  <div class="screen" id="screen3">
+    <div class="notice"><b>Before signing:</b> counsel/CPA open items on the Counsel Follow-Up Tracker must be cleared. Print each document to PDF with the Print button, or download a Word copy for edits.</div>
+    <div class="tabs" id="docTabs"></div>
+    <div class="btnbar">
+      <button class="btn primary" onclick="window.print()">Print / Save as PDF</button>
+      <button class="btn secondary" onclick="downloadWord()">Download Word (.doc)</button>
+      <button class="btn secondary" onclick="goStep(2)">← Back to Deal Info</button>
+    </div>
+    <div id="docPane"></div>
+  </div>
+</div>
+<footer>Chapman School of Seamanship · Standard Forms (August 2026) · Documents are drafting templates — attorney review required before first program use. v1.0</footer>
+
+<script>
+/* ============================================================
+   EDITABLE CONFIGURATION — staff may change values in this block
+   ============================================================ */
+const CONFIG = {
+  orgName: "Charles F. Chapman School of Seamanship, Inc.",
+  orgDescriptor: "a Florida not-for-profit corporation",
+  orgAddress: "4343 S.E. St. Lucie Blvd., Stuart, Florida 34997",
+  orgEmail: "",                    // Chapman's notice email, e.g. office@chapman.org
+  leaseTermMonths: 36,             // lease term
+  leaseDownPct: 0.30,              // down payment % of Agreed Value
+  leaseMonthlyPct: 0.01,           // monthly payment % of Agreed Value
+  leaseDeposit: 10000,             // fixed security deposit ($)
+  purchaseDepositPct: 0.10,        // purchase deposit % of price
+  formVersion: "Standard Form (August 2026)"
+};
+/* ========================= end configuration ========================= */
+
+let dealType = null, activeDoc = 0, equip = [];
+const $ = id => document.getElementById(id);
+const BL = n => '_'.repeat(n||22);                       // blank line
+const F  = (id,n) => { const v=$(id)?$(id).value.trim():''; return v ? esc(v) : BL(n); };
+const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+const cur = n => n.toLocaleString('en-US',{style:'currency',currency:'USD'});
+const CURB = (n, blankLen) => (isFinite(n)&&n>0) ? cur(n) : '$'+BL(blankLen||14);
+function fmtDate(id){ const v=$(id)?$(id).value:''; if(!v) return BL(18);
+  const d=new Date(v+'T12:00:00'); return d.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}); }
+function addMonths(id,m){ const v=$(id)?$(id).value:''; if(!v) return BL(18);
+  const d=new Date(v+'T12:00:00'); d.setMonth(d.getMonth()+m);
+  return d.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}); }
+function num(id){ return parseFloat(($(id)?$(id).value:'').replace(/[^0-9.]/g,'')); }
+
+function setType(t){ if(dealType!==t) activeDoc=0; dealType=t;
+  $('chLease').classList.toggle('sel',t==='lease');
+  $('chPurchase').classList.toggle('sel',t==='purchase');
+  const isP = t==='purchase';
+  $('fLeaseVal').querySelector('label').textContent = isP ? 'Purchase Price ($)' : 'Agreed Value ($)';
+  $('fLeaseStart').style.display = isP?'none':'';
+  ['fPurchClose','fPurchRemove','fPurchStore','fPurchBroker','fEquip'].forEach(i=>$(i).style.display=isP?'':'none');
+  if(isP && equip.length===0){ addEquip(); addEquip(); addEquip(); }
+  calc(); goStep(2);
+}
+function goStep(n){ if(n>1 && !dealType){ alert('Choose Lease or Purchase first.'); return; }
+  [1,2,3].forEach(i=>{ $('screen'+i).classList.toggle('active',i===n); $('stepBtn'+i).classList.toggle('active',i===n); });
+  if(n===3) renderDocs();
+  window.scrollTo(0,0);
+}
+
+/* ---------- money math ---------- */
+function leaseNums(){ const v=num('dValue');
+  if(!isFinite(v)||v<=0) return {v:NaN};
+  const down=Math.round(v*CONFIG.leaseDownPct*100)/100;
+  const monthly=Math.round(v*CONFIG.leaseMonthlyPct*100)/100;
+  const agg=Math.round(monthly*CONFIG.leaseTermMonths*100)/100;
+  const residual=Math.round((v-down-agg)*100)/100;
+  return {v,down,monthly,agg,residual};
+}
+function purchNums(){ const p=num('dValue');
+  if(!isFinite(p)||p<=0) return {p:NaN};
+  const dep=Math.round(p*CONFIG.purchaseDepositPct*100)/100;
+  return {p,dep,bal:Math.round((p-dep)*100)/100};
+}
+function calc(){ const box=$('calcBox'); if(!dealType){box.innerHTML='';return;}
+  if(dealType==='lease'){ const n=leaseNums();
+    box.innerHTML = `<h3>Computed Lease Amounts — ${CONFIG.leaseTermMonths} months</h3>
+      ${row('Agreed Value (total purchase price)',n.v)}
+      ${row('Down Payment (30%) — due at signing',n.down)}
+      ${row('Monthly Lease Payment (1%) × 36',n.monthly,' /mo')}
+      ${row('Aggregate of monthly payments (36%)',n.agg)}
+      ${row('Residual Purchase Payment (34%) — due at end of Term',n.residual)}
+      ${row('Security Deposit (fixed, refundable)',CONFIG.leaseDeposit)}
+      <div class="calcrow total"><span>Check: down + monthly + residual</span><span class="amt">${isFinite(n.v)?cur(n.down+n.agg+n.residual):'—'}</span></div>`;
+  } else { const n=purchNums();
+    box.innerHTML = `<h3>Computed Purchase Amounts</h3>
+      ${row('Purchase Price',n.p)}
+      ${row('Deposit (10%) — due at signing, cleared funds',n.dep)}
+      ${row('Balance due at Closing, cleared funds',n.bal)}`;
+  }
+  function row(l,a,suf){ return `<div class="calcrow"><span>${l}</span><span class="amt">${isFinite(a)?cur(a)+(suf||''):'—'}</span></div>`; }
+}
+
+/* ---------- equipment rows ---------- */
+function addEquip(){ equip.push({item:'',serial:'',cond:''}); drawEquip(); }
+function drawEquip(){ $('equipRows').innerHTML = equip.map((e,i)=>`
+  <div class="grid" style="margin-bottom:8px">
+    <div><label>Item ${i+1}</label><input value="${esc(e.item)}" oninput="equip[${i}].item=this.value"></div>
+    <div><label>Serial / ID</label><input class="mono" value="${esc(e.serial)}" oninput="equip[${i}].serial=this.value"></div>
+    <div><label>Condition notes</label><input value="${esc(e.cond)}" oninput="equip[${i}].cond=this.value"></div>
+  </div>`).join(''); }
+
+/* ---------- save / load ---------- */
+const FIELDS=['cpName','cpType','cpAddr','cpEmail','vMake','vYear','vName','vHin','vRegime','vDoc','vTitle','vLen','vLoc','dEff','dValue','dStart','dClose','dRemove','dStorage','dBroker'];
+function saveDeal(){ const data={dealType,equip,fields:{}}; FIELDS.forEach(f=>data.fields[f]=$(f)?$(f).value:'');
+  const b=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  dl(b, (($('cpName').value.trim()||'deal').replace(/\W+/g,'_'))+'_'+(dealType||'deal')+'.json'); }
+function loadDeal(ev){ const f=ev.target.files[0]; if(!f)return; const r=new FileReader();
+  r.onload=()=>{ try{ const d=JSON.parse(r.result); if(d.dealType) setType(d.dealType);
+    equip=d.equip||[]; drawEquip(); FIELDS.forEach(k=>{ if($(k)&&d.fields&&k in d.fields) $(k).value=d.fields[k]; }); calc(); }
+    catch(e){ alert('Could not read that file.'); } }; r.readAsText(f); ev.target.value=''; }
+function clearAll(){ if(!confirm('Clear all entered data?'))return; FIELDS.forEach(f=>{if($(f))$(f).value='';}); $('dRemove').value='10'; $('dStorage').value='75'; $('dBroker').value='None'; equip=[]; if(dealType==='purchase'){addEquip();addEquip();addEquip();} calc(); }
+function dl(blob,name){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),4000); }
+
+/* ---------- shared document fragments ---------- */
+function partiesBlock(roleA,roleB){ return `
+  <p>This Agreement is made and entered into as of ${fmtDate('dEff')} (the "Effective Date") by and between:</p>
+  <ul>
+    <li><b>${roleA}:</b> ${CONFIG.orgName}, ${CONFIG.orgDescriptor}, with its principal place of business at ${CONFIG.orgAddress} ("${roleA}" or "Chapman"). Email for notices: ${CONFIG.orgEmail?esc(CONFIG.orgEmail):BL(26)}</li>
+    <li><b>${roleB}:</b> ${F('cpName',30)}, ${F('cpType',26)}, with an address at ${F('cpAddr',34)} ("${roleB}"). Email for notices: ${F('cpEmail',26)}</li>
+  </ul>
+  <p>(Each of the above may be referred to as a "Party" and collectively as the "Parties.") Each individual signing this Agreement represents that he or she is at least eighteen (18) years of age, has full legal capacity, and is duly authorized to bind the Party for whom he or she signs.</p>`; }
+function vesselList(mode){ const reg=$('vRegime').value;
+  const docNo = reg==='fl' ? ('N/A — Florida titled; Title/Reg No. '+F('vTitle',14)) : F('vDoc',14);
+  const stateLine = mode==='purchase' ? `<li>State Title / Registration No. (if applicable): ${reg==='uscg'?'N/A — USCG documented':F('vTitle',14)}</li>` : '';
+  return `
+  <ul>
+    <li>Make / Model: ${F('vMake',26)}</li>
+    <li>Year: ${F('vYear',8)}</li>
+    <li>Vessel Name: "${F('vName',24)}"</li>
+    <li>Hull Identification Number (HIN): ${F('vHin',16)}</li>
+    <li>Official Documentation Number: ${docNo}</li>
+    <li>Length: Approximately ${F('vLen',6)} feet</li>
+    <li>Current Location: ${F('vLoc',28)} (the "Delivery Location")</li>
+    ${stateLine}
+  </ul>`; }
+function sigBlock(a,b){ return `
+  <div class="sig">
+    <p><b>${CONFIG.orgName} (${a})</b></p>
+    <p>By: ${BL(34)}<br>Name: ${BL(30)}<br>Title: ${BL(30)}<br>Date: ${BL(20)}</p>
+    <p style="margin-top:12pt"><b>${F('cpName',30)} (${b})</b></p>
+    <p>By: ${BL(34)}<br>Name: ${BL(30)}<br>Title: ${BL(30)}<br>Date: ${BL(20)}</p>
+  </div>`; }
+function juryBlock(a,b){ return `
+  <p><b>TO THE FULLEST EXTENT PERMITTED BY LAW, EACH PARTY KNOWINGLY, VOLUNTARILY, AND INTENTIONALLY WAIVES ANY RIGHT TO TRIAL BY JURY IN ANY LITIGATION ARISING FROM OR RELATED TO THIS AGREEMENT. EACH PARTY ACKNOWLEDGES THIS WAIVER BY INITIALING BELOW.</b></p>
+  <p>${a}'s initials: ${BL(10)} &nbsp;&nbsp; ${b}'s initials: ${BL(10)}</p>`; }
+function govLaw(){ return `<p>This Agreement is governed by the laws of the State of Florida, without regard to conflict-of-law principles, and by the general maritime law of the United States to the extent applicable. Any dispute arising out of or relating to this Agreement shall be brought exclusively in the state courts of Martin County, Florida, or the U.S. District Court for the Southern District of Florida (if federal jurisdiction exists). Each Party consents to the personal jurisdiction and venue of those courts and waives any inconvenient-forum objection.</p>`; }
+function noticesText(v){ return `<p>Notices under this Agreement must be in writing and are deemed given when delivered personally; on the third business day after mailing by certified mail (return receipt requested); on the next business day if sent by recognized overnight courier; or upon confirmed transmission if sent by email. Notices go to the ${v==='purchase'?'addresses and email addresses':'addresses'} stated in the Parties section, or to such other address as a Party designates by written notice. Formal notices of default or termination sent by email must be followed by a hard copy by mail or courier.</p>`; }
+
+/* ---------- LEASE DOCUMENTS ---------- */
+function docLease(){ const n=leaseNums();
+return `<div class="doc">
+<h1>AS-IS, WHERE-IS VESSEL LEASE-PURCHASE AGREEMENT</h1>
+<p><b>${CONFIG.orgName} — ${CONFIG.formVersion}</b></p>
+<h2>Parties</h2>${partiesBlock('Lessor','Lessee')}
+<h2>Background</h2>
+<p>Lessor owns the vessel described in Section 1 below. Lessee desires to lease the vessel from Lessor and to acquire ownership of it by fulfilling the payment and performance terms of this Agreement. The vessel is leased, and will be conveyed, strictly <b>AS IS, WHERE IS</b>, as set out in Section 5. In consideration of the mutual covenants contained in this Agreement, the Parties agree as follows:</p>
+<h2>1. Vessel Description</h2>
+<p>The vessel that is the subject of this Lease-Purchase Agreement (the "Vessel") is:</p>
+${vesselList('lease')}
+<h2>2. Lease Term and Possession</h2>
+<p>The lease term (the "Term") is thirty-six (36) months, commencing on ${fmtDate('dStart')} (the "Commencement Date") and ending on ${addMonths('dStart',36)} (the "Expiration Date"), unless terminated earlier as provided in this Agreement. On the Commencement Date, Lessor shall deliver possession of the Vessel to Lessee at the Delivery Location in the condition described in Section 5. Lessee shall take sole possession on that date and shall bear all responsibility for the Vessel's operation and condition during the Term. At delivery, the Parties shall execute a <b>Vessel Delivery and Acceptance Certificate</b> confirming delivery of the Vessel, Lessee's acceptance of its condition under Section 5, and the equipment inventory.</p>
+<h2>3. Agreed Value and Payment Terms</h2>
+<p><b>3.1 Agreed Value.</b> The Parties agree that the value and total purchase price of the Vessel is ${CURB(n.v)} (the "Agreed Value"). The Agreed Value is the basis for the payments in this Section 3 and for the hull insurance requirement in Section 8. The amounts computed under this Section 3 shall be set out in <b>Exhibit A — Payment Schedule</b>, which is incorporated into this Agreement.</p>
+<p><b>3.2 Down Payment.</b> Upon execution of this Agreement, Lessee shall pay Lessor a down payment equal to <b>thirty percent (30%) of the Agreed Value</b>: ${CURB(n.down)} (the "Down Payment"). The Down Payment is separate from, and not part of, the Security Deposit in Section 4.</p>
+<p><b>3.3 Monthly Lease Payments.</b> During the Term, Lessee shall pay Lessor thirty-six (36) monthly lease payments, each equal to <b>one percent (1%) of the Agreed Value</b>: ${CURB(n.monthly)} per month. The first monthly payment is due on the Commencement Date, and each subsequent payment is due on the same day of each calendar month thereafter during the Term. Any payment not received in full within five (5) days after its due date shall bear a late charge of five percent (5%) of the overdue amount, without limiting Lessor's remedies under Section 11. <b>Time is of the essence for all payments.</b></p>
+<p><b>3.4 Residual Purchase Payment.</b> On or before the Expiration Date, Lessee shall pay Lessor the residual balance of the Agreed Value (the "Residual Purchase Payment"), equal to the Agreed Value minus the Down Payment and minus the aggregate monthly lease payments — that is, <b>thirty-four percent (34%) of the Agreed Value</b>: ${CURB(n.residual)}. Title to the Vessel transfers only as provided in Section 9 after the Residual Purchase Payment and all other amounts due under this Agreement have been paid in full.</p>
+<p><b>3.5 Application of Payments.</b> The Down Payment, the thirty-six monthly lease payments, and the Residual Purchase Payment together constitute payment of the Agreed Value (exclusive of the Security Deposit, taxes, fees, and any other amounts due under this Agreement), and each is credited toward the purchase price. All amounts paid remain subject to the default and remedies provisions of Section 11.</p>
+<p><b>3.6 Taxes and Fees.</b> Lessee is responsible for any sales tax, use tax, documentary stamp tax, registration fees, or similar taxes and fees due in connection with the lease payments or the transfer of title, except to the extent an exemption applies under Florida law. Lessee shall timely pay all such amounts, or reimburse Lessor on demand if Lessor is required to pay any such tax or fee on Lessee's behalf. Sales tax will be collected and remitted as required by Florida law, including tax due on lease payments and/or at the time title is transferred into Lessee's name, as applicable.</p>
+<p><b>3.7 Funding Classification.</b> Lessee acknowledges that, for Lessor's internal accounting and reporting purposes, monies received by Lessor under this Agreement (excluding the refundable Security Deposit and taxes or fees collected for remittance to governmental authorities) may, at Lessor's discretion, be designated and reported as board-designated or otherwise internally dedicated program funds supporting Lessor's educational mission. Any such designation is an internal accounting classification only and does not (a) limit or modify Lessor's rights or remedies under this Agreement, (b) create any rights in Lessee or any third party as to the use of such funds, or (c) alter the taxability of any payment due from Lessee.</p>
+<h2>4. Security Deposit</h2>
+<p>Upon execution of this Agreement, Lessee shall pay Lessor a Security Deposit of <b>${cur(CONFIG.leaseDeposit)}</b>, held as security for Lessee's performance and for any damage to the Vessel. Lessor may commingle the Security Deposit with its general funds (no trust or escrow is required) and owes no interest on it. If Lessee defaults or causes damage to the Vessel, Lessor may (in addition to its other remedies) apply the Security Deposit toward unpaid amounts, repair costs, or other damages. If Lessee fully performs and nothing is owed to Lessor, the remaining balance of the Security Deposit shall be refunded to Lessee upon the earlier of (a) 30 days after the Expiration Date (and return of the Vessel, if this Agreement terminates without transfer of title), or (b) the transfer of title to Lessee.</p>
+<h2>5. As-Is, Where-Is Condition; Disclaimer of Warranties</h2>
+<p><b>THIS IS AN AS-IS, WHERE-IS LEASE.</b> Lessee acknowledges and agrees that the Vessel is leased, and at the end of the Term will be conveyed, <b>"AS IS, WHERE IS,"</b> in its present condition and at its present location, with all faults and defects, whether apparent or latent. Lessor makes <b>NO WARRANTIES</b> or representations of any kind, express or implied, as to the Vessel or any equipment aboard, including any warranty of seaworthiness, merchantability, fitness for a particular purpose, or condition. Lessee has inspected the Vessel or has had the opportunity to do so, and accepts the Vessel's condition as of the Commencement Date. Except as expressly set forth in this Agreement, Lessee waives all claims against Lessor regarding the condition, quality, or performance of the Vessel.</p>
+<p>The only warranties made by Lessor are that (a) Lessor has the legal right to lease and sell the Vessel as provided in this Agreement, and (b) title will be transferred free and clear of any Lessor-created liens at the time of sale. All other warranties are disclaimed.</p>
+<h2>6. No Contingencies; No Further Inspection Rights</h2>
+<p>There are no contingencies or conditions precedent to Lessee's obligations under this Agreement except as explicitly stated in it. Lessee's commitment to lease and purchase the Vessel is not subject to any further survey, sea trial, title search, financing approval, or other due diligence, and Lessee waives any right to rescind or terminate this Agreement based on the results of any inspection or the discovery of any condition of the Vessel. Lessee acknowledges that any desired inspections (including marine survey and documentation review) were completed to Lessee's satisfaction before signing, or that Lessee elected to proceed without them.</p>
+<h2>7. Lessee's Use and Maintenance Responsibilities</h2>
+<p>During the Term, Lessee has full responsibility for the possession, operation, and maintenance of the Vessel, at Lessee's sole expense, subject to the following:</p>
+<p><b>7.1 Operational Control (Bareboat/Demise).</b> This Agreement is a demise (bareboat) charter arrangement. Lessee has sole and complete possession, command, and operational control of the Vessel during the Term and assumes all legal and financial responsibility for its operation. Lessee shall crew, equip, provision, and operate the Vessel safely and lawfully at its own cost. All operators and crew engaged by Lessee shall be qualified and properly licensed as required by law; Lessee shall provide Lessor documentation of operator qualifications and licenses at signing and upon any change of operators during the Term (documentation only — Lessor does not select, approve, or direct operators). Lessor retains no operational control. <b>Risk of loss, damage, destruction, seizure, or theft of the Vessel passes to Lessee upon delivery and remains with Lessee until title transfers to Lessee or the Vessel is returned to Lessor. No loss of, damage to, or unavailability of the Vessel relieves Lessee of its payment or other obligations under this Agreement.</b></p>
+<p><b>7.2 Permitted Use and Navigational Limits.</b> Lessee shall use the Vessel in a careful and customary manner for a vessel of its size and type, only in waters permitted by the required insurance and within these navigational limits: the navigable coastal and inland waters of the United States, Canada, and the Caribbean Sea; not east of 58°00' West longitude; not south of 9°30' North latitude; and not more than 100 nautical miles offshore. Lessee shall not operate the Vessel in the territorial waters of Cuba, Haiti, Colombia, or Venezuela, or in any region prohibited by U.S. law or the Vessel's insurance policy, and shall comply with all applicable laws and regulations.</p>
+<p><b>7.3 Prohibition on Improper and Commercial Use.</b> Lessee shall not use the Vessel for any illegal purpose or for the transport of illicit or hazardous materials in violation of law, and shall not permit any use that would void insurance coverage or expose the Vessel to legal forfeiture. Lessee shall not carry passengers for hire or otherwise operate the Vessel commercially unless expressly permitted in a signed writing from Lessor and covered by the required insurance and all required U.S. Coast Guard credentials and certificates.</p>
+<p><b>7.4 Maintenance and Repairs.</b> Lessee, at its own cost, shall keep the Vessel well maintained and in good running order throughout the Term, performing all routine and required maintenance, repairs, and parts replacement necessary to keep the Vessel in safe operating condition (subject to the as-is condition acknowledged in Section 5). Lessee shall not commit or permit waste of the Vessel. All maintenance and repairs shall follow manufacturer guidelines and good marine practice.</p>
+<p><b>7.5 Alterations.</b> Lessee shall not make major alterations, additions, or structural modifications to the Vessel without Lessor's prior written consent. Approved modifications are at Lessee's expense. Except for normal wear and tear, Lessee is responsible for all damage to or deterioration of the Vessel during the Term and shall promptly arrange repairs at its expense.</p>
+<p><b>7.6 Operating Expenses.</b> Lessee is solely responsible for all operating expenses of the Vessel during the Term, including fuel, oil, lubricants, crew wages, provisioning, dockage, moorage, harbor fees, pilotage, maintenance, insurance premiums, and any taxes or assessments arising from use or operation of the Vessel.</p>
+<p><b>7.7 No Sub-Charter, Sublease, or Assignment.</b> Lessee shall <b>not</b> sub-charter, sublease, or hire out the Vessel, permit any third party to use the Vessel for compensation, or assign or transfer this Agreement or any interest in it, in whole or in part, whether voluntarily, involuntarily, or by operation of law. Any attempted sub-charter, sublease, hire, or assignment is void and constitutes an Event of Default under Section 11.</p>
+<h2>8. Insurance</h2>
+<p>Throughout the Term, Lessee shall, at its own expense, obtain and maintain comprehensive marine insurance for the Vessel, including:</p>
+<p><b>8.1 Hull and Machinery.</b> Coverage insuring the Vessel for its full Agreed Value (or such other amount as the Parties agree in writing) against marine perils, including damage, theft, sinking, and total loss, written on an agreed-value basis if available, and including a breach-of-warranty or Lessor's-interest endorsement in favor of Lessor if reasonably available.</p>
+<p><b>8.2 Protection &amp; Indemnity (P&amp;I) / Liability.</b> Coverage for third-party bodily injury, death, and property damage of at least <b>$1,000,000 per occurrence</b> (or higher if required by Lessor or reasonably available), including crew liability (Jones Act) coverage if a crew is employed.</p>
+<p><b>8.3 Additional Insured and Loss Payee.</b> The liability policy shall name Lessor as an Additional Insured, and the hull policy shall name Lessor as Loss Payee, so that hull proceeds are payable as Lessor's interest may appear.</p>
+<p><b>8.4 Insurer and Policy Requirements.</b> All required insurance shall be placed with reputable insurers reasonably acceptable to Lessor. Policies shall require at least 30 days' prior written notice to Lessor before cancellation, non-renewal, or material change. Lessee shall deliver certificates of insurance and endorsements evidencing the required coverage <b>before taking possession of the Vessel</b> and upon each renewal. If Lessee fails to maintain any required coverage, Lessor may (but is not obligated to) obtain replacement coverage at Lessee's expense, reimbursable on demand, without waiving the resulting Event of Default.</p>
+<p><b>8.5 Application of Insurance Proceeds.</b> Lessee shall promptly notify Lessor and the carrier of any damage to or loss of the Vessel. Proceeds of an insured loss shall be applied first to repair the Vessel (if repairable) or, in a total loss, to pay Lessor an amount sufficient to cover the unpaid balance of the Agreed Value and any other amounts owed by Lessee; any excess proceeds shall be paid to Lessee. If proceeds are insufficient (including through uninsured loss or deductible), Lessee remains responsible for the deficiency. Upon Lessor's receipt of the full unpaid balance of the Agreed Value and all other amounts owed following a total loss, this Agreement terminates and Lessor shall transfer to Lessee its interest, if any, in the wreck, salvage, and any remaining insurance proceeds. Compliance with these insurance requirements does not relieve Lessee of any liability under this Agreement.</p>
+<h2>9. Ownership, No Sale by Lessor, and Title Transfer</h2>
+<p><b>9.1 Retention of Title; Quiet Enjoyment.</b> During the Term, legal title to the Vessel remains with Lessor. Lessee's rights are those of a lessee and equitable purchaser under this Agreement. Lessee shall not sell, mortgage, pledge, or otherwise encumber the Vessel (liens arising in ordinary operation are governed by Section 10). So long as Lessee is not in default, Lessor shall not interfere with Lessee's quiet use and enjoyment of the Vessel.</p>
+<p><b>9.2 No Sale or Transfer by Lessor During the Term.</b> <b>At no time while this Agreement is in effect shall Lessor sell, convey, transfer, or agree to sell the Vessel, or any interest in it, to any person other than Lessee, nor list, market, or offer the Vessel for sale, nor grant any mortgage or voluntary encumbrance on the Vessel.</b> Any purported sale, transfer, or encumbrance in violation of this Section is void as between the Parties and is a default by Lessor under Section 11.3. This covenant terminates only upon (a) transfer of title to Lessee, or (b) termination of this Agreement following Lessee's default or as otherwise provided herein.</p>
+<p><b>9.3 Final Purchase and Transfer.</b> Upon Lessee's payment of all amounts due under this Agreement — the Down Payment, all 36 monthly lease payments, the Residual Purchase Payment, and any other charges owed — and satisfactory performance of all obligations, Lessor shall, within fifteen (15) days, deliver to Lessee documents sufficient to transfer ownership of the Vessel, including a properly executed U.S. Coast Guard Bill of Sale (or Florida title transfer documents, as applicable) conveying 100% ownership to Lessee for no additional consideration, on the AS-IS, WHERE-IS basis described in Section 5. Title shall transfer free and clear of all liens, claims, and encumbrances created by or through Lessor; any lien or claim arising from Lessee's possession, use, or operation of the Vessel is Lessee's responsibility under Section 10.2.</p>
+<p><b>9.4 Condition at Transfer.</b> The Vessel's condition at title transfer will reflect Lessee's use and maintenance during the Term. Lessor is not required to perform any make-ready work or repairs, and the Vessel transfers at its then-current location per Section 5; any relocation after transfer is Lessee's responsibility.</p>
+<p><b>9.5 Documentation and Fees.</b> The Parties shall cooperate in executing documents required to complete the transfer. Costs of documentation or registration into Lessee's name (title fees, USCG or state registration) are borne by Lessee. If required, Lessor will execute such releases as are necessary to reflect the termination of Lessor's interest in the Vessel upon transfer.</p>
+<h2>10. Indemnity; No Liens</h2>
+<p><b>10.1 Indemnification.</b> Lessee shall indemnify, defend, and hold harmless Lessor and its directors, officers, employees, and agents from and against all claims, liabilities, losses, damages, penalties, and expenses (including reasonable attorneys' fees) arising out of or related to Lessee's use or possession of the Vessel during the Term — including personal injury, death, property damage, and environmental pollution (e.g., fuel spills) — except to the extent caused by Lessor's gross negligence or willful misconduct. This indemnity survives termination or expiration of this Agreement.</p>
+<p><b>10.2 No Liens by Lessee.</b> Lessee shall not incur or permit any maritime liens, security interests, or other encumbrances on the Vessel or Lessor's title, except liens for salvage, general average, or crew wages incurred in ordinary operation and fully discharged by Lessee in the ordinary course. Lessee shall notify Lessor in writing within 48 hours after Lessee learns of any lien, claim, arrest, attachment, levy, or legal process asserted against the Vessel. Lessee shall carry aboard the Vessel, and exhibit on request, a notice stating that the Vessel is owned by Lessor and that Lessee has no authority to create, incur, or permit any lien on the Vessel. Lessee shall promptly remove or bond off any lien or claim against the Vessel at its own expense; if Lessee fails to do so, Lessor may act and Lessee shall reimburse Lessor on demand.</p>
+<p><b>10.3 No Liens by Lessor.</b> Lessor shall not incur any liens or encumbrances against the Vessel during the Term (other than any arising from this Agreement) and shall, at its own expense, promptly remove or discharge any lien or encumbrance created by or through Lessor.</p>
+<h2>11. Default and Remedies</h2>
+<p><b>11.1 Events of Default (Lessee).</b> Each of the following is an Event of Default:</p>
+<ul>
+<li><b>Failure to Pay:</b> any payment due under this Agreement is not made in full within 10 days after its due date.</li>
+<li><b>Insurance Lapse:</b> Lessee fails to maintain required insurance or provide proof of it, and does not cure within 10 days of Lessor's notice.</li>
+<li><b>Unauthorized Use:</b> Lessee materially violates the permitted use or navigational limits, uses the Vessel for an illegal or improper purpose, or materially violates law in connection with the Vessel's operation.</li>
+<li><b>Prohibited Transfer:</b> Lessee sub-charters, subleases, hires out, or assigns in violation of Section 7.7.</li>
+<li><b>Breach of Other Obligations:</b> Lessee breaches any other material term (including maintenance or lien obligations) and fails to cure within 15 days after written notice (if curable).</li>
+<li><b>Insolvency or Abandonment:</b> Lessee becomes insolvent, makes an assignment for the benefit of creditors, or is subject to a bankruptcy or receivership proceeding not dismissed within 60 days; or Lessee abandons the Vessel or conclusively indicates an intent not to perform.</li>
+</ul>
+<p><b>11.2 Lessor's Remedies.</b> Upon an Event of Default, Lessor may, at its option and in addition to all other rights at law or in equity:</p>
+<ul>
+<li><b>Terminate</b> this Agreement effective immediately upon written notice, cancelling the lease and Lessee's purchase rights; Lessee remains liable for unpaid amounts and damages arising before termination.</li>
+<li><b>Repossess the Vessel</b> peaceably (by self-help without breach of the peace, or by legal process); Lessee shall cooperate in surrendering the Vessel, and any removal or transport upon default is at Lessee's risk and expense.</li>
+<li><b>Retain Payments and Deposit</b> previously paid (including the Down Payment, lease payments, and Security Deposit) as liquidated damages for Lessee's use of the Vessel and not as a penalty, to the extent permitted by law; the Parties acknowledge these amounts reasonably compensate Lessor for depreciation and use, and the Security Deposit may be applied to actual damages and costs.</li>
+<li><b>Recover Additional Damages</b> if retained sums are insufficient (including repair costs, attorneys' fees, and diminished value or lost resale opportunity); alternatively, Lessor may sell or re-lease the Vessel and recover any shortfall between the remaining amounts owed and the proceeds, with credit for amounts recovered.</li>
+<li><b>Specific Performance</b> to compel Lessee to take title and pay remaining amounts where Lessee has substantially paid the purchase price but refuses to complete the transaction.</li>
+</ul>
+<p>All remedies are cumulative. Lessee shall reimburse Lessor for all reasonable attorneys' fees and costs incurred in enforcing this Agreement.</p>
+<p><b>11.3 Lessor Default; Lessee's Remedies.</b> If Lessor fails to perform a material obligation (including the covenant in Section 9.2 or the obligation to transfer title upon full payment) and does not cure within 15 days after Lessee's written notice, Lessee may pursue its remedies at law or in equity, including specific performance or termination. If Lessee terminates due to Lessor's uncured default, Lessor shall return the Security Deposit and refund the Down Payment and monthly payments made, less the reasonable rental value of Lessee's use of the Vessel through the date of termination.</p>
+<p><b>11.4 No Waiver.</b> A Party's failure to exercise any right upon the other's default is not a waiver. Any waiver must be in writing and does not waive any other or subsequent default.</p>
+<h2>12. Governing Law and Venue</h2>${govLaw()}
+<h2>13. Notices</h2>${noticesText('lease')}
+<h2>14. Entire Agreement and Amendment</h2>
+<p>This Agreement (including Exhibit A and any other exhibits or riders, which are incorporated by reference) is the entire agreement between the Parties regarding the lease and purchase of the Vessel and supersedes all prior negotiations and understandings. No amendment, modification, or waiver is valid unless in writing and signed by both Parties (or, for a waiver, by the waiving Party).</p>
+<h2>15. Counterparts and Electronic Signatures</h2>
+<p>This Agreement may be executed in counterparts, each an original and together one instrument. Signatures transmitted electronically (PDF, email, or electronic signature service) are deemed original and binding.</p>
+<h2>16. WAIVER OF JURY TRIAL</h2>${juryBlock('Lessor','Lessee')}
+<p>IN WITNESS WHEREOF, the Parties have executed this As-Is, Where-Is Vessel Lease-Purchase Agreement as of the Effective Date.</p>
+${sigBlock('Lessor','Lessee')}
+</div>`; }
+
+function docExhibitA(){ const n=leaseNums();
+return `<div class="doc">
+<h1>EXHIBIT A — PAYMENT SCHEDULE</h1>
+<p><b>To the As-Is, Where-Is Vessel Lease-Purchase Agreement dated ${fmtDate('dEff')} between ${CONFIG.orgName} (Lessor) and ${F('cpName',26)} (Lessee)</b></p>
+<p>Vessel: ${F('vName',22)} &nbsp; HIN: ${F('vHin',16)}</p>
+<h2>Payment Structure</h2>
+<p>All computed amounts below are derived from the Agreed Value under Section 3.1 of the Agreement.</p>
+<table>
+<tr><th>Item</th><th>Formula</th><th>Amount</th></tr>
+<tr><td><b>Agreed Value (total purchase price)</b></td><td>—</td><td>${CURB(n.v)}</td></tr>
+<tr><td><b>Down Payment</b> (due at signing)</td><td>30% of Agreed Value</td><td>${CURB(n.down)}</td></tr>
+<tr><td><b>Monthly Lease Payment</b> × 36</td><td>1% of Agreed Value per month</td><td>${CURB(n.monthly)} /mo</td></tr>
+<tr><td><b>Aggregate of Monthly Payments</b></td><td>36% of Agreed Value</td><td>${CURB(n.agg)}</td></tr>
+<tr><td><b>Residual Purchase Payment</b> (due on or before the Expiration Date)</td><td>Agreed Value − Down Payment − aggregate monthly payments = 34% of Agreed Value</td><td>${CURB(n.residual)}</td></tr>
+<tr><td><b>Security Deposit</b> (refundable per Section 4; not part of purchase price)</td><td>Fixed</td><td>${cur(CONFIG.leaseDeposit)}</td></tr>
+</table>
+<p><b>Check:</b> Down Payment (30%) + 36 monthly payments (36%) + Residual Purchase Payment (34%) = 100% of the Agreed Value${isFinite(n.v)?' = '+cur(n.down+n.agg+n.residual):''}.</p>
+<h2>Payment Schedule</h2>
+<table>
+<tr><th>#</th><th>Due Date</th><th>Amount</th><th>Notes</th></tr>
+<tr><td>—</td><td>At signing</td><td>${CURB(n.down)}</td><td>Down Payment (30%)</td></tr>
+<tr><td>—</td><td>At signing</td><td>${cur(CONFIG.leaseDeposit)}</td><td>Security Deposit</td></tr>
+<tr><td>1</td><td>Commencement Date — ${fmtDate('dStart')}</td><td>${CURB(n.monthly)}</td><td>Monthly payment (1%)</td></tr>
+<tr><td>2–36</td><td>Same day of each following month</td><td>${CURB(n.monthly)}</td><td>Monthly payment (1%)</td></tr>
+<tr><td>—</td><td>On or before ${addMonths('dStart',36)}</td><td>${CURB(n.residual)}</td><td>Residual Purchase Payment (34%)</td></tr>
+</table>
+<h2>Taxes</h2>
+<p>Sales tax, use tax, and registration fees are the Lessee's responsibility under Section 3.6 of the Agreement and are <b>in addition to</b> the amounts above.</p>
+<p><b>Late payments:</b> Any payment not received in full within five (5) days after its due date bears a late charge of 5% of the overdue amount (Section 3.3); any payment not received within 10 days after its due date is an Event of Default under Section 11.1 of the Agreement.</p>
+<div class="sig">
+<p>Acknowledged and agreed:</p>
+<p>Lessor: ${BL(30)} &nbsp; Date: ${BL(14)}</p>
+<p>Lessee: ${BL(30)} &nbsp; Date: ${BL(14)}</p>
+</div>
+</div>`; }
+
+function docChecklist(){ const n=leaseNums(); const cb='<span class="cbx">&#9744;</span> ';
+return `<div class="doc">
+<h1>PRE-LEASE CHECKLIST — AS-IS, WHERE-IS VESSEL LEASE-PURCHASE</h1>
+<p><b>${CONFIG.orgName} — ${CONFIG.formVersion}</b></p>
+<p>Vessel: ${F('vName',22)} &nbsp; Lessee: ${F('cpName',24)} &nbsp; Target Commencement Date: ${fmtDate('dStart')}</p>
+<p><b>The Vessel does not leave the dock until every item in Sections A–D is checked.</b></p>
+<h2>A. Agreement and Money</h2>
+<p>${cb}Agreed Value established (${CURB(n.v)}) and entered in Section 3.1 and Exhibit A (basis documented: survey, appraisal, or board-approved valuation)<br>
+${cb}Exhibit A completed — Down Payment ${CURB(n.down)}, monthly ${CURB(n.monthly)}, Residual ${CURB(n.residual)} — cross-checked to total 100%<br>
+${cb}Lease-Purchase Agreement fully completed (no blanks) and signed by both Parties<br>
+${cb}Down Payment (30% of Agreed Value) received and cleared<br>
+${cb}Security Deposit (${cur(CONFIG.leaseDeposit)}) received and cleared<br>
+${cb}Payments recorded in Sage 50 and the tracking system; CPA notified of funding classification (Section 3.7)<br>
+${cb}Florida sales tax treatment of lease payments and title transfer confirmed with CPA; collection/remittance method set before Exhibit A is finalized (dealer registration confirmed if required)<br>
+${cb}CPA has confirmed lease vs. conditional-sale characterization, UBIT treatment, and imputed-interest analysis for this transaction (or confirmed the standing determination applies)</p>
+<h2>B. Insurance (before possession — Section 8)</h2>
+<p>${cb}Hull &amp; Machinery certificate received — coverage at full Agreed Value ${CURB(n.v)}, agreed-value basis if available<br>
+${cb}Liability / P&amp;I certificate received — minimum $1,000,000 per occurrence<br>
+${cb}Chapman named as <b>Additional Insured</b> (liability) and <b>Loss Payee</b> (hull) — shown on the certificate or endorsement<br>
+${cb}30-day cancellation/change notice provision confirmed<br>
+${cb}Insurer acceptable; policy period covers the full Term or renewal tickler set</p>
+<h2>C. Lessee Qualification and Vessel Documentation</h2>
+<p>${cb}Lessee identity verified (individual ID or entity formation documents and signing authority)<br>
+${cb}Credit application and FCRA consent completed<br>
+${cb}Operator qualifications/licenses documented for all intended operators (documentation only — Chapman does not select or approve operators)<br>
+${cb}Vessel's title regime determined — USCG-documented OR Florida-titled (not both): correct blanks completed in Section 1, N/A marked, and transfer mechanics confirmed for that regime<br>
+${cb}Lessee acknowledged in writing: AS-IS, WHERE-IS condition (Section 5), no contingencies (Section 6), <b>no sub-charter, sublease, or assignment (Section 7.7)</b><br>
+${cb}Vessel title/documentation confirmed in Chapman's name; lien search clean; no Chapman encumbrances<br>
+${cb}If the Vessel was donated to Chapman: donation date checked — if disposition occurs within 3 years of the gift, CPA files IRS Form 8282 within 125 days of disposition and provides a copy to the donor (CPA to confirm whether "disposition" is lease commencement or title transfer); <b>if a Form 1098-C use certification was made for this vessel, CPA/counsel written clearance obtained before any lease</b><br>
+${cb}Condition photos/video taken and filed; equipment inventory attached</p>
+<h2>D. Delivery</h2>
+<p>${cb}Vessel Delivery and Acceptance Certificate signed at handover<br>
+${cb}Keys, documentation papers, and equipment inventory delivered against signature<br>
+${cb}Payment reminder schedule and insurance renewal tickler entered in the tracking system<br>
+${cb}Counsel/CPA open items (per the Counsel Follow-Up Tracker) cleared or accepted in writing by the Executive Director</p>
+<h2>Sign-off</h2>
+<p>Prepared by: ${BL(30)} &nbsp; Date: ${BL(14)}</p>
+<p>Approved (Executive Director): ${BL(30)} &nbsp; Date: ${BL(14)}</p>
+</div>`; }
+
+/* ---------- PURCHASE DOCUMENTS ---------- */
+function docPurchase(){ const n=purchNums();
+return `<div class="doc">
+<h1>AS-IS, WHERE-IS VESSEL PURCHASE AGREEMENT</h1>
+<p><b>${CONFIG.orgName} — ${CONFIG.formVersion}</b></p>
+<h2>Parties</h2>${partiesBlock('Seller','Buyer')}
+<h2>Background</h2>
+<p>Seller owns the vessel described in Section 1 below and desires to sell it, and Buyer desires to purchase it, strictly <b>AS IS, WHERE IS</b>, as set out in Section 5. In consideration of the mutual covenants contained in this Agreement, the Parties agree as follows:</p>
+<h2>1. Vessel Description</h2>
+<p>The vessel that is the subject of this Purchase Agreement (the "Vessel") is:</p>
+${vesselList('purchase')}
+<p>The Vessel is sold with its permanently installed machinery, fixtures, and appurtenances. Loose equipment, electronics, tenders, and other personal property are included only if listed on the equipment inventory attached as <b>Exhibit 1</b>, which is incorporated into this Agreement; any such items not listed on Exhibit 1 are excluded from the sale.</p>
+<h2>2. Purchase Price and Payment</h2>
+<p><b>2.1 Purchase Price.</b> The total purchase price for the Vessel is ${CURB(n.p)} (the "Purchase Price").</p>
+<p><b>2.2 Deposit.</b> Upon execution of this Agreement, Buyer shall pay Seller a deposit equal to <b>ten percent (10%) of the Purchase Price</b>: ${CURB(n.dep)} (the "Deposit"), paid in cleared funds. The Deposit is credited toward the Purchase Price at Closing. Seller may commingle the Deposit with its general funds (no trust or escrow is required) and owes no interest on it. Seller's obligations under this Agreement, including the covenant in Section 4, are conditioned on Seller's receipt of the Deposit in cleared funds; if the Deposit is not received in cleared funds within three (3) business days after the Effective Date, Seller may terminate this Agreement by written notice to Buyer, and neither Party shall have further obligation to the other. <b>Time is of the essence for all payments.</b></p>
+<p><b>2.3 Balance at Closing.</b> Buyer shall pay the balance of the Purchase Price — ${CURB(n.bal)} — in full, in cleared funds (wire transfer or other immediately available funds acceptable to Seller), at or before the Closing. Title does not transfer, and possession does not pass, until the entire Purchase Price and all other amounts due under this Agreement have been received in full.</p>
+<p><b>2.4 Taxes and Fees.</b> Buyer is responsible for all sales tax, use tax, documentary stamp tax, registration and titling fees, and similar taxes and fees due in connection with this sale, except to the extent an exemption applies under Florida law. Sales tax will be collected and remitted as required by Florida law. Buyer shall timely pay all such amounts, or reimburse Seller on demand if Seller is required to pay any such tax or fee on Buyer's behalf.</p>
+<h2>3. Closing</h2>
+<p><b>3.1 Closing Date and Place.</b> The closing of the sale (the "Closing") shall take place on or before ${fmtDate('dClose')} (the "Closing Date"), at the Delivery Location or such other place (including by exchange of documents and funds) as the Parties agree in writing.</p>
+<p><b>3.2 Seller's Deliverables at Closing.</b> At Closing, against receipt of the full Purchase Price, Seller shall deliver to Buyer: (a) a properly executed U.S. Coast Guard Bill of Sale (or Florida title transfer documents, as applicable to the Vessel's title regime); (b) such releases as are necessary to reflect the termination of any interest of Seller in the Vessel; and (c) the keys, documentation papers, and equipment listed on Exhibit 1.</p>
+<p><b>3.3 Buyer's Deliverables at Closing.</b> At Closing, Buyer shall deliver: (a) the balance of the Purchase Price in cleared funds; (b) all taxes and fees for which Buyer is responsible at Closing under Section 2.4; and (c) a signed Vessel Delivery and Acceptance Certificate confirming delivery of the Vessel, Buyer's acceptance of its condition under Section 5, and the equipment inventory.</p>
+<p><b>3.4 Possession and Risk of Loss.</b> Possession of, and risk of loss, damage, destruction, seizure, or theft of, the Vessel pass to Buyer at Closing upon Seller's receipt of the full Purchase Price. Until Closing, Seller bears risk of loss; if the Vessel suffers material damage or total loss before Closing, either Party may terminate this Agreement by written notice, in which case Seller shall refund the Deposit and neither Party shall have further obligation to the other. If the Vessel suffers damage before Closing that is not material, the Parties shall nonetheless close, and Seller shall, at Seller's election, either (a) repair the damage before Closing, (b) credit the reasonable cost of repair against the Purchase Price, or (c) assign to Buyer at Closing any insurance proceeds payable for that damage, and Buyer shall accept the Vessel with such damage. Damage is "material" for purposes of this Section if the reasonable cost of repair exceeds ten percent (10%) of the Purchase Price.</p>
+<p><b>3.5 Removal of the Vessel.</b> Buyer shall remove the Vessel from the Delivery Location within ${F('dRemove',6)} days after Closing at Buyer's sole cost and risk. If the Vessel remains at a Chapman facility after that period, Buyer shall pay Seller storage at $${F('dStorage',8)} per day, and the Vessel remains there entirely at Buyer's risk. While the Vessel remains at a Chapman facility after Closing, Buyer shall maintain liability insurance covering the Vessel and shall provide proof on request. If the Vessel remains at a Chapman facility more than sixty (60) days after Closing, Seller may remove and store the Vessel at Buyer's sole cost and risk and, after thirty (30) days' written notice to Buyer, may dispose of the Vessel in accordance with applicable law, applying any proceeds to amounts Buyer owes and remitting any excess to Buyer.</p>
+<h2>4. No Sale to Others; No Encumbrance by Seller</h2>
+<p>While this Agreement is in effect, Seller shall not sell, convey, transfer, or agree to sell the Vessel, or any interest in it, to any person other than Buyer, nor list, market, or offer the Vessel for sale, nor grant any mortgage or voluntary encumbrance on the Vessel. This covenant terminates upon (a) Closing, or (b) termination of this Agreement under its terms.</p>
+<h2>5. As-Is, Where-Is Condition; Disclaimer of Warranties</h2>
+<p><b>THIS IS AN AS-IS, WHERE-IS SALE.</b> Buyer acknowledges and agrees that the Vessel is sold <b>"AS IS, WHERE IS,"</b> in its present condition and at its present location, with all faults and defects, whether apparent or latent. Seller makes <b>NO WARRANTIES</b> or representations of any kind, express or implied, as to the Vessel or any equipment aboard, including any warranty of seaworthiness, merchantability, fitness for a particular purpose, or condition. Buyer has inspected the Vessel or has had the opportunity to do so, and accepts the Vessel's condition as of the Effective Date. Except as expressly set forth in this Agreement, Buyer waives all claims against Seller regarding the condition, quality, or performance of the Vessel.</p>
+<p>The only warranties made by Seller are that (a) Seller has the legal right to sell the Vessel as provided in this Agreement, and (b) title will be transferred at Closing free and clear of all liens, claims, and encumbrances created by or through Seller. All other warranties are disclaimed.</p>
+<h2>6. No Contingencies; No Further Inspection Rights</h2>
+<p>There are no contingencies or conditions precedent to Buyer's obligations under this Agreement except as explicitly stated in it. Buyer's commitment to purchase the Vessel is not subject to any further survey, sea trial, title search, financing approval, or other due diligence, and Buyer waives any right to rescind or terminate this Agreement based on the results of any inspection or the discovery of any condition of the Vessel, except as expressly provided in Section 3.4. Buyer acknowledges that any desired inspections (including marine survey and documentation review) were completed to Buyer's satisfaction before signing, or that Buyer elected to proceed without them.</p>
+<h2>7. Default and Remedies</h2>
+<p><b>7.1 Buyer Default.</b> If Buyer fails to pay the balance of the Purchase Price and close by the Closing Date (time being of the essence, with no cure period), or otherwise materially breaches this Agreement and fails to cure within ten (10) days after Seller's written notice, Seller may terminate this Agreement by written notice and <b>retain the Deposit as liquidated damages</b> — the Parties agreeing that Seller's actual damages (holding costs, lost market opportunity, remarketing costs) would be difficult to determine and that the Deposit is a reasonable estimate, not a penalty — and thereafter resell the Vessel free of any claim by Buyer. Retention of the Deposit as liquidated damages is Seller's sole monetary remedy for Buyer's failure to close, except that Buyer remains liable for any storage charges and for physical damage to the Vessel caused by Buyer or Buyer's agents.</p>
+<p><b>7.2 Seller Default.</b> If Seller fails to deliver title as required at Closing, or otherwise materially breaches this Agreement and fails to cure within ten (10) days after Buyer's written notice, Buyer may terminate this Agreement and receive a full refund of the Deposit, or pursue specific performance of Seller's obligation to convey the Vessel. Refund of the Deposit or specific performance are Buyer's sole and exclusive remedies for Seller's default.</p>
+<p><b>7.3 Attorneys' Fees.</b> In any action arising out of this Agreement, the prevailing Party is entitled to recover its reasonable attorneys' fees and costs.</p>
+<p><b>7.4 No Waiver.</b> A Party's failure to exercise any right upon the other's default is not a waiver. Any waiver must be in writing and does not waive any other or subsequent default.</p>
+<h2>8. Indemnity After Closing</h2>
+<p>From and after Closing, Buyer shall indemnify, defend, and hold harmless Seller and its directors, officers, employees, and agents from and against all claims, liabilities, losses, damages, penalties, and expenses (including reasonable attorneys' fees) arising out of or related to the ownership, possession, use, or operation of the Vessel after Closing — including personal injury, death, property damage, and environmental pollution (e.g., fuel spills) — except to the extent caused by Seller's gross negligence or willful misconduct. This indemnity survives the Closing.</p>
+<h2>9. Brokers</h2>
+<p>Each Party represents that it has dealt with no broker in connection with this sale except: ${F('dBroker',26)}. Any commission due a listed broker is payable per a separate written agreement, and each Party shall indemnify the other against claims by any broker claiming through it.</p>
+<h2>10. Governing Law and Venue</h2>${govLaw()}
+<h2>11. Notices</h2>${noticesText('purchase')}
+<h2>12. Assignment; Entire Agreement and Amendment</h2>
+<p><b>12.1 No Assignment by Buyer.</b> Buyer may not assign this Agreement or any interest in it without Seller's prior written consent; any attempted assignment without consent is void. This Agreement binds and benefits the Parties and their permitted successors and assigns.</p>
+<p><b>12.2 Entire Agreement.</b> This Agreement (including Exhibit 1 and any other exhibits or riders, which are incorporated by reference) is the entire agreement between the Parties regarding the sale of the Vessel and supersedes all prior negotiations and understandings. No amendment, modification, or waiver is valid unless in writing and signed by both Parties (or, for a waiver, by the waiving Party). Sections 2.4, 3.5, 7, 8, 9, 10, 11, and 14 survive Closing or termination of this Agreement.</p>
+<h2>13. Counterparts and Electronic Signatures</h2>
+<p>This Agreement may be executed in counterparts, each an original and together one instrument. Signatures transmitted electronically (PDF, email, or electronic signature service) are deemed original and binding.</p>
+<h2>14. WAIVER OF JURY TRIAL</h2>${juryBlock('Seller','Buyer')}
+<p>IN WITNESS WHEREOF, the Parties have executed this As-Is, Where-Is Vessel Purchase Agreement as of the Effective Date.</p>
+${sigBlock('Seller','Buyer')}
+</div>`; }
+
+function docExhibit1(){
+const rows = (equip.length?equip:[{},{},{}]).map((e,i)=>`<tr><td>${i+1}</td><td>${e.item?esc(e.item):'&nbsp;'}</td><td>${e.serial?esc(e.serial):'&nbsp;'}</td><td>${e.cond?esc(e.cond):'&nbsp;'}</td></tr>`).join('');
+return `<div class="doc">
+<h1>EXHIBIT 1 — EQUIPMENT INVENTORY</h1>
+<p>Vessel: ${F('vName',22)} &nbsp; HIN: ${F('vHin',16)}</p>
+<table>
+<tr><th style="width:6%">#</th><th>Item</th><th>Serial / ID (if any)</th><th>Condition Notes</th></tr>
+${rows}
+</table>
+<p>Only the loose equipment, tenders, and personal property listed above are included in the sale (the Vessel's permanently installed machinery, fixtures, and appurtenances are included per Section 1). All items are included AS IS, WHERE IS per Section 5 of the Agreement.</p>
+<div class="sig">
+<p>Seller: ${BL(30)} &nbsp; Date: ${BL(14)}</p>
+<p>Buyer: ${BL(30)} &nbsp; Date: ${BL(14)}</p>
+</div>
+</div>`; }
+
+/* ---------- document pane ---------- */
+function docSet(){ return dealType==='purchase'
+  ? [{t:'Purchase Agreement',f:docPurchase,file:'Purchase_Agreement'},{t:'Exhibit 1 — Equipment',f:docExhibit1,file:'Exhibit_1_Equipment_Inventory'}]
+  : [{t:'Lease-Purchase Agreement',f:docLease,file:'Lease_Purchase_Agreement'},{t:'Exhibit A — Payments',f:docExhibitA,file:'Exhibit_A_Payment_Schedule'},{t:'Pre-Lease Checklist',f:docChecklist,file:'Pre_Lease_Checklist'}]; }
+function renderDocs(){ const set=docSet(); if(activeDoc>=set.length)activeDoc=0;
+  $('docTabs').innerHTML=set.map((d,i)=>`<button class="tab ${i===activeDoc?'active':''}" onclick="activeDoc=${i};renderDocs()">${d.t}</button>`).join('');
+  $('docPane').innerHTML=set[activeDoc].f(); }
+function downloadWord(){ const set=docSet(); const d=set[activeDoc];
+  const html=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><title>${d.t}</title><style>body{font-family:'Times New Roman',serif;font-size:11.5pt;line-height:1.4;color:#000}h1{font-size:14pt}h2{font-size:12pt}table{border-collapse:collapse;width:100%}td,th{border:1px solid #000;padding:4pt 6pt;font-size:10.5pt;text-align:left;vertical-align:top}p{margin:0 0 7pt}ul{margin:0 0 7pt 22pt}</style></head><body>${d.f()}</body></html>`;
+  const name=(($('cpName').value.trim()||'Chapman').replace(/\W+/g,'_'))+'_'+d.file+'.doc';
+  dl(new Blob(['﻿'+html],{type:'application/msword'}),name); }
+calc();
+</script>
+</body>
+</html>
