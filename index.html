@@ -150,7 +150,7 @@ footer{padding:14px 20px;color:var(--ink-muted);font-size:.75rem;text-align:cent
 
   <!-- SCREEN 3 -->
   <div class="screen" id="screen3">
-    <div class="notice"><b>Before signing:</b> counsel/CPA open items on the Counsel Follow-Up Tracker must be cleared. Print each document to PDF with the Print button, or download a Word copy for edits.</div>
+    <div class="notice"><b>Before signing:</b> counsel/CPA open items on the Counsel Follow-Up Tracker must be cleared. Print each document to PDF with the Print button, or download a Word copy for edits.<br><b>After signing — file it:</b> in Google Drive open <b>Boat Leasing Program → 10 COMPLETED CONTRACTS</b>, create one folder per deal named <i>YYYY-MM-DD - LEASE (or PURCHASE) - Counterparty - VESSEL</i>, save the signed PDFs <b>plus the deal .json</b> (Save Deal File on the previous screen) into it, and add a row to the <b>Contract Register</b> spreadsheet.</div>
     <div class="tabs" id="docTabs"></div>
     <div class="btnbar">
       <button class="btn primary" onclick="window.print()">Print / Save as PDF</button>
@@ -256,7 +256,8 @@ function drawEquip(){ $('equipRows').innerHTML = equip.map((e,i)=>`
 const FIELDS=['cpName','cpType','cpAddr','cpEmail','vMake','vYear','vName','vHin','vRegime','vDoc','vTitle','vLen','vLoc','dEff','dValue','dStart','dClose','dRemove','dStorage','dBroker'];
 function saveDeal(){ const data={dealType,equip,fields:{}}; FIELDS.forEach(f=>data.fields[f]=$(f)?$(f).value:'');
   const b=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
-  dl(b, (($('cpName').value.trim()||'deal').replace(/\W+/g,'_'))+'_'+(dealType||'deal')+'.json'); }
+  const d=new Date(), ds=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  dl(b, ds+'_'+(($('cpName').value.trim()||'deal').replace(/\W+/g,'_'))+'_'+(dealType||'deal')+'.json'); }
 function loadDeal(ev){ const f=ev.target.files[0]; if(!f)return; const r=new FileReader();
   r.onload=()=>{ try{ const d=JSON.parse(r.result); if(d.dealType) setType(d.dealType);
     equip=d.equip||[]; drawEquip(); FIELDS.forEach(k=>{ if($(k)&&d.fields&&k in d.fields) $(k).value=d.fields[k]; }); calc(); }
