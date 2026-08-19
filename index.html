@@ -120,7 +120,7 @@ footer{padding:14px 20px;color:var(--ink-muted);font-size:.75rem;text-align:cent
         <div><label>USCG Official No. (if documented)</label><input id="vDoc" class="mono" oninput="calc()"></div>
         <div><label>FL Title / Reg No. (if state titled)</label><input id="vTitle" class="mono" oninput="calc()"></div>
         <div><label>Length (feet)</label><input id="vLen" class="mono" oninput="calc()"></div>
-        <div><label>Current location (Delivery Location)</label><input id="vLoc" oninput="calc()"></div>
+        <div style="grid-column:1/-1"><label>CURRENT LOCATION OF VESSEL — the "Delivery Location" (marina/dock, city, state)</label><input id="vLoc" oninput="calc()" placeholder="e.g., Chapman School docks, 4343 SE St. Lucie Blvd., Stuart, FL"></div>
       </div>
     </fieldset>
     <fieldset><legend>Deal Terms</legend>
@@ -128,6 +128,9 @@ footer{padding:14px 20px;color:var(--ink-muted);font-size:.75rem;text-align:cent
         <div><label>Effective date</label><input id="dEff" type="date" onchange="calc()"></div>
         <div id="fLeaseVal"><label>Agreed Value ($)</label><input id="dValue" class="mono" inputmode="decimal" oninput="calc()"></div>
         <div id="fLeaseStart"><label>Commencement date</label><input id="dStart" type="date" onchange="calc()"></div>
+        <div id="fPriceMode"><label>Lease pricing</label><select id="dPriceMode" onchange="calc()"><option value="standard">Standard — 30% down / 1% monthly / 34% residual</option><option value="custom">Custom — set down &amp; monthly, residual adjusts</option></select></div>
+        <div id="fCustDown" style="display:none"><label>Custom Down Payment ($)</label><input id="dCustDown" class="mono" inputmode="decimal" oninput="calc()"></div>
+        <div id="fCustMonthly" style="display:none"><label>Custom Monthly Payment ($)</label><input id="dCustMonthly" class="mono" inputmode="decimal" oninput="calc()"></div>
         <div id="fPurchClose" style="display:none"><label>Closing date (on or before)</label><input id="dClose" type="date" onchange="calc()"></div>
         <div id="fPurchRemove" style="display:none"><label>Removal period after closing (days)</label><input id="dRemove" class="mono" inputmode="numeric" value="10" oninput="calc()"></div>
         <div id="fPurchStore" style="display:none"><label>Storage after removal period ($/day)</label><input id="dStorage" class="mono" inputmode="decimal" value="75" oninput="calc()"></div>
@@ -170,7 +173,7 @@ const CONFIG = {
   orgName: "Charles F. Chapman School of Seamanship, Inc.",
   orgDescriptor: "a Florida not-for-profit corporation",
   orgAddress: "4343 S.E. St. Lucie Blvd., Stuart, Florida 34997",
-  orgEmail: "",                    // Chapman's notice email, e.g. office@chapman.org
+  orgEmail: "ainfo@chapman.org",   // Chapman's notice email
   leaseTermMonths: 36,             // lease term
   leaseDownPct: 0.30,              // down payment % of Agreed Value
   leaseMonthlyPct: 0.01,           // monthly payment % of Agreed Value
@@ -200,6 +203,7 @@ function setType(t){ if(dealType!==t) activeDoc=0; dealType=t;
   const isP = t==='purchase';
   $('fLeaseVal').querySelector('label').textContent = isP ? 'Purchase Price ($)' : 'Agreed Value ($)';
   $('fLeaseStart').style.display = isP?'none':'';
+  $('fPriceMode').style.display = isP?'none':'';
   ['fPurchClose','fPurchRemove','fPurchStore','fPurchBroker','fEquip'].forEach(i=>$(i).style.display=isP?'':'none');
   if(isP && equip.length===0){ addEquip(); addEquip(); addEquip(); }
   calc(); goStep(2);
@@ -211,13 +215,24 @@ function goStep(n){ if(n>1 && !dealType){ alert('Choose Lease or Purchase first.
 }
 
 /* ---------- money math ---------- */
+function isCustom(){ return $('dPriceMode') && $('dPriceMode').value==='custom'; }
+function pctOf(part,whole){ if(!isFinite(part)||!isFinite(whole)||whole<=0) return '____';
+  const p=Math.round(part/whole*10000)/100; return (p%1===0?p.toFixed(0):p.toFixed(2)); }
 function leaseNums(){ const v=num('dValue');
-  if(!isFinite(v)||v<=0) return {v:NaN};
-  const down=Math.round(v*CONFIG.leaseDownPct*100)/100;
-  const monthly=Math.round(v*CONFIG.leaseMonthlyPct*100)/100;
+  if(!isFinite(v)||v<=0) return {v:NaN,custom:isCustom()};
+  let down,monthly;
+  if(isCustom()){
+    down=num('dCustDown'); monthly=num('dCustMonthly');
+    down=isFinite(down)?Math.round(down*100)/100:NaN;
+    monthly=isFinite(monthly)?Math.round(monthly*100)/100:NaN;
+  } else {
+    down=Math.round(v*CONFIG.leaseDownPct*100)/100;
+    monthly=Math.round(v*CONFIG.leaseMonthlyPct*100)/100;
+  }
   const agg=Math.round(monthly*CONFIG.leaseTermMonths*100)/100;
   const residual=Math.round((v-down-agg)*100)/100;
-  return {v,down,monthly,agg,residual};
+  return {v,down,monthly,agg,residual,custom:isCustom(),
+    downPct:pctOf(down,v),monthlyPct:pctOf(monthly,v),aggPct:pctOf(agg,v),residualPct:pctOf(residual,v)};
 }
 function purchNums(){ const p=num('dValue');
   if(!isFinite(p)||p<=0) return {p:NaN};
@@ -225,15 +240,25 @@ function purchNums(){ const p=num('dValue');
   return {p,dep,bal:Math.round((p-dep)*100)/100};
 }
 function calc(){ const box=$('calcBox'); if(!dealType){box.innerHTML='';return;}
+  const custom=isCustom() && dealType==='lease';
+  if($('fCustDown')){ $('fCustDown').style.display = custom?'':'none'; $('fCustMonthly').style.display = custom?'':'none'; }
   if(dealType==='lease'){ const n=leaseNums();
-    box.innerHTML = `<h3>Computed Lease Amounts — ${CONFIG.leaseTermMonths} months</h3>
+    let warn='';
+    if(custom && isFinite(n.v)){
+      if(!isFinite(n.down)||!isFinite(n.monthly)) warn='Enter the custom Down Payment and Monthly Payment.';
+      else if(n.residual<0) warn='⚠ Payments exceed the Agreed Value — residual is NEGATIVE. Lower the down payment or monthly payment.';
+      else if(n.residual===0) warn='Note: residual is $0 — the boat is fully paid before the end of the Term.';
+      else if(parseFloat(n.residualPct)>50) warn='⚠ Residual is over 50% of the Agreed Value — a large balloon payment. Confirm this is intended.';
+    }
+    box.innerHTML = `<h3>Computed Lease Amounts — ${CONFIG.leaseTermMonths} months ${custom?'(CUSTOM TERMS)':'(Standard 30% / 1% / 34%)'}</h3>
       ${row('Agreed Value (total purchase price)',n.v)}
-      ${row('Down Payment (30%) — due at signing',n.down)}
-      ${row('Monthly Lease Payment (1%) × 36',n.monthly,' /mo')}
-      ${row('Aggregate of monthly payments (36%)',n.agg)}
-      ${row('Residual Purchase Payment (34%) — due at end of Term',n.residual)}
+      ${row(`Down Payment (${n.downPct||'30'}%) — due at signing`,n.down)}
+      ${row(`Monthly Lease Payment (${n.monthlyPct||'1'}%) × 36`,n.monthly,' /mo')}
+      ${row(`Aggregate of monthly payments (${n.aggPct||'36'}%)`,n.agg)}
+      ${row(`Residual Purchase Payment (${n.residualPct||'34'}%) — due at end of Term`,n.residual)}
       ${row('Security Deposit (fixed, refundable)',CONFIG.leaseDeposit)}
-      <div class="calcrow total"><span>Check: down + monthly + residual</span><span class="amt">${isFinite(n.v)?cur(n.down+n.agg+n.residual):'—'}</span></div>`;
+      <div class="calcrow total"><span>Check: down + monthly + residual</span><span class="amt">${isFinite(n.v)&&isFinite(n.down)&&isFinite(n.monthly)?cur(n.down+n.agg+n.residual):'—'}</span></div>
+      ${warn?`<div style="color:#FFB4B4;font-size:.85rem;margin-top:8px;font-weight:600">${warn}</div>`:''}`;
   } else { const n=purchNums();
     box.innerHTML = `<h3>Computed Purchase Amounts</h3>
       ${row('Purchase Price',n.p)}
@@ -253,7 +278,7 @@ function drawEquip(){ $('equipRows').innerHTML = equip.map((e,i)=>`
   </div>`).join(''); }
 
 /* ---------- save / load ---------- */
-const FIELDS=['cpName','cpType','cpAddr','cpEmail','vMake','vYear','vName','vHin','vRegime','vDoc','vTitle','vLen','vLoc','dEff','dValue','dStart','dClose','dRemove','dStorage','dBroker'];
+const FIELDS=['cpName','cpType','cpAddr','cpEmail','vMake','vYear','vName','vHin','vRegime','vDoc','vTitle','vLen','vLoc','dEff','dValue','dStart','dClose','dRemove','dStorage','dBroker','dPriceMode','dCustDown','dCustMonthly'];
 function saveDeal(){ const data={dealType,equip,fields:{}}; FIELDS.forEach(f=>data.fields[f]=$(f)?$(f).value:'');
   const b=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const d=new Date(), ds=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
@@ -315,9 +340,13 @@ ${vesselList('lease')}
 <p>The lease term (the "Term") is thirty-six (36) months, commencing on ${fmtDate('dStart')} (the "Commencement Date") and ending on ${addMonths('dStart',36)} (the "Expiration Date"), unless terminated earlier as provided in this Agreement. On the Commencement Date, Lessor shall deliver possession of the Vessel to Lessee at the Delivery Location in the condition described in Section 5. Lessee shall take sole possession on that date and shall bear all responsibility for the Vessel's operation and condition during the Term. At delivery, the Parties shall execute a <b>Vessel Delivery and Acceptance Certificate</b> confirming delivery of the Vessel, Lessee's acceptance of its condition under Section 5, and the equipment inventory.</p>
 <h2>3. Agreed Value and Payment Terms</h2>
 <p><b>3.1 Agreed Value.</b> The Parties agree that the value and total purchase price of the Vessel is ${CURB(n.v)} (the "Agreed Value"). The Agreed Value is the basis for the payments in this Section 3 and for the hull insurance requirement in Section 8. The amounts computed under this Section 3 shall be set out in <b>Exhibit A — Payment Schedule</b>, which is incorporated into this Agreement.</p>
+${n.custom ? `
+<p><b>3.2 Down Payment.</b> Upon execution of this Agreement, Lessee shall pay Lessor a down payment of <b>${CURB(n.down)}</b> (the "Down Payment"), equal to approximately ${n.downPct}% of the Agreed Value. The Down Payment is separate from, and not part of, the Security Deposit in Section 4.</p>
+<p><b>3.3 Monthly Lease Payments.</b> During the Term, Lessee shall pay Lessor thirty-six (36) monthly lease payments of <b>${CURB(n.monthly)}</b> each (approximately ${n.monthlyPct}% of the Agreed Value per month). The first monthly payment is due on the Commencement Date, and each subsequent payment is due on the same day of each calendar month thereafter during the Term. Any payment not received in full within five (5) days after its due date shall bear a late charge of five percent (5%) of the overdue amount, without limiting Lessor's remedies under Section 11. <b>Time is of the essence for all payments.</b></p>
+<p><b>3.4 Residual Purchase Payment.</b> On or before the Expiration Date, Lessee shall pay Lessor the residual balance of the Agreed Value (the "Residual Purchase Payment"), equal to the Agreed Value minus the Down Payment and minus the aggregate monthly lease payments: <b>${CURB(n.residual)}</b> (approximately ${n.residualPct}% of the Agreed Value). Title to the Vessel transfers only as provided in Section 9 after the Residual Purchase Payment and all other amounts due under this Agreement have been paid in full.</p>` : `
 <p><b>3.2 Down Payment.</b> Upon execution of this Agreement, Lessee shall pay Lessor a down payment equal to <b>thirty percent (30%) of the Agreed Value</b>: ${CURB(n.down)} (the "Down Payment"). The Down Payment is separate from, and not part of, the Security Deposit in Section 4.</p>
 <p><b>3.3 Monthly Lease Payments.</b> During the Term, Lessee shall pay Lessor thirty-six (36) monthly lease payments, each equal to <b>one percent (1%) of the Agreed Value</b>: ${CURB(n.monthly)} per month. The first monthly payment is due on the Commencement Date, and each subsequent payment is due on the same day of each calendar month thereafter during the Term. Any payment not received in full within five (5) days after its due date shall bear a late charge of five percent (5%) of the overdue amount, without limiting Lessor's remedies under Section 11. <b>Time is of the essence for all payments.</b></p>
-<p><b>3.4 Residual Purchase Payment.</b> On or before the Expiration Date, Lessee shall pay Lessor the residual balance of the Agreed Value (the "Residual Purchase Payment"), equal to the Agreed Value minus the Down Payment and minus the aggregate monthly lease payments — that is, <b>thirty-four percent (34%) of the Agreed Value</b>: ${CURB(n.residual)}. Title to the Vessel transfers only as provided in Section 9 after the Residual Purchase Payment and all other amounts due under this Agreement have been paid in full.</p>
+<p><b>3.4 Residual Purchase Payment.</b> On or before the Expiration Date, Lessee shall pay Lessor the residual balance of the Agreed Value (the "Residual Purchase Payment"), equal to the Agreed Value minus the Down Payment and minus the aggregate monthly lease payments — that is, <b>thirty-four percent (34%) of the Agreed Value</b>: ${CURB(n.residual)}. Title to the Vessel transfers only as provided in Section 9 after the Residual Purchase Payment and all other amounts due under this Agreement have been paid in full.</p>`}
 <p><b>3.5 Application of Payments.</b> The Down Payment, the thirty-six monthly lease payments, and the Residual Purchase Payment together constitute payment of the Agreed Value (exclusive of the Security Deposit, taxes, fees, and any other amounts due under this Agreement), and each is credited toward the purchase price. All amounts paid remain subject to the default and remedies provisions of Section 11.</p>
 <p><b>3.6 Taxes and Fees.</b> Lessee is responsible for any sales tax, use tax, documentary stamp tax, registration fees, or similar taxes and fees due in connection with the lease payments or the transfer of title, except to the extent an exemption applies under Florida law. Lessee shall timely pay all such amounts, or reimburse Lessor on demand if Lessor is required to pay any such tax or fee on Lessee's behalf. Sales tax will be collected and remitted as required by Florida law, including tax due on lease payments and/or at the time title is transferred into Lessee's name, as applicable.</p>
 <p><b>3.7 Funding Classification.</b> Lessee acknowledges that, for Lessor's internal accounting and reporting purposes, monies received by Lessor under this Agreement (excluding the refundable Security Deposit and taxes or fees collected for remittance to governmental authorities) may, at Lessor's discretion, be designated and reported as board-designated or otherwise internally dedicated program funds supporting Lessor's educational mission. Any such designation is an internal accounting classification only and does not (a) limit or modify Lessor's rights or remedies under this Agreement, (b) create any rights in Lessee or any third party as to the use of such funds, or (c) alter the taxability of any payment due from Lessee.</p>
@@ -396,21 +425,21 @@ return `<div class="doc">
 <table>
 <tr><th>Item</th><th>Formula</th><th>Amount</th></tr>
 <tr><td><b>Agreed Value (total purchase price)</b></td><td>—</td><td>${CURB(n.v)}</td></tr>
-<tr><td><b>Down Payment</b> (due at signing)</td><td>30% of Agreed Value</td><td>${CURB(n.down)}</td></tr>
-<tr><td><b>Monthly Lease Payment</b> × 36</td><td>1% of Agreed Value per month</td><td>${CURB(n.monthly)} /mo</td></tr>
-<tr><td><b>Aggregate of Monthly Payments</b></td><td>36% of Agreed Value</td><td>${CURB(n.agg)}</td></tr>
-<tr><td><b>Residual Purchase Payment</b> (due on or before the Expiration Date)</td><td>Agreed Value − Down Payment − aggregate monthly payments = 34% of Agreed Value</td><td>${CURB(n.residual)}</td></tr>
+<tr><td><b>Down Payment</b> (due at signing)</td><td>${n.custom?`Negotiated — approx. ${n.downPct}% of Agreed Value`:'30% of Agreed Value'}</td><td>${CURB(n.down)}</td></tr>
+<tr><td><b>Monthly Lease Payment</b> × 36</td><td>${n.custom?`Negotiated — approx. ${n.monthlyPct}% of Agreed Value per month`:'1% of Agreed Value per month'}</td><td>${CURB(n.monthly)} /mo</td></tr>
+<tr><td><b>Aggregate of Monthly Payments</b></td><td>${n.custom?`36 × monthly payment (approx. ${n.aggPct}% of Agreed Value)`:'36% of Agreed Value'}</td><td>${CURB(n.agg)}</td></tr>
+<tr><td><b>Residual Purchase Payment</b> (due on or before the Expiration Date)</td><td>Agreed Value − Down Payment − aggregate monthly payments${n.custom?` (approx. ${n.residualPct}% of Agreed Value)`:' = 34% of Agreed Value'}</td><td>${CURB(n.residual)}</td></tr>
 <tr><td><b>Security Deposit</b> (refundable per Section 4; not part of purchase price)</td><td>Fixed</td><td>${cur(CONFIG.leaseDeposit)}</td></tr>
 </table>
-<p><b>Check:</b> Down Payment (30%) + 36 monthly payments (36%) + Residual Purchase Payment (34%) = 100% of the Agreed Value${isFinite(n.v)?' = '+cur(n.down+n.agg+n.residual):''}.</p>
+<p><b>Check:</b> ${n.custom?'Down Payment + 36 monthly payments + Residual Purchase Payment = 100% of the Agreed Value':'Down Payment (30%) + 36 monthly payments (36%) + Residual Purchase Payment (34%) = 100% of the Agreed Value'}${isFinite(n.v)&&isFinite(n.down)&&isFinite(n.monthly)?' = '+cur(n.down+n.agg+n.residual):''}.</p>
 <h2>Payment Schedule</h2>
 <table>
 <tr><th>#</th><th>Due Date</th><th>Amount</th><th>Notes</th></tr>
-<tr><td>—</td><td>At signing</td><td>${CURB(n.down)}</td><td>Down Payment (30%)</td></tr>
+<tr><td>—</td><td>At signing</td><td>${CURB(n.down)}</td><td>Down Payment (${n.custom?('approx. '+n.downPct):'30'}%)</td></tr>
 <tr><td>—</td><td>At signing</td><td>${cur(CONFIG.leaseDeposit)}</td><td>Security Deposit</td></tr>
-<tr><td>1</td><td>Commencement Date — ${fmtDate('dStart')}</td><td>${CURB(n.monthly)}</td><td>Monthly payment (1%)</td></tr>
-<tr><td>2–36</td><td>Same day of each following month</td><td>${CURB(n.monthly)}</td><td>Monthly payment (1%)</td></tr>
-<tr><td>—</td><td>On or before ${addMonths('dStart',36)}</td><td>${CURB(n.residual)}</td><td>Residual Purchase Payment (34%)</td></tr>
+<tr><td>1</td><td>Commencement Date — ${fmtDate('dStart')}</td><td>${CURB(n.monthly)}</td><td>Monthly payment${n.custom?'':' (1%)'}</td></tr>
+<tr><td>2–36</td><td>Same day of each following month</td><td>${CURB(n.monthly)}</td><td>Monthly payment${n.custom?'':' (1%)'}</td></tr>
+<tr><td>—</td><td>On or before ${addMonths('dStart',36)}</td><td>${CURB(n.residual)}</td><td>Residual Purchase Payment (${n.custom?('approx. '+n.residualPct):'34'}%)</td></tr>
 </table>
 <h2>Taxes</h2>
 <p>Sales tax, use tax, and registration fees are the Lessee's responsibility under Section 3.6 of the Agreement and are <b>in addition to</b> the amounts above.</p>
@@ -431,8 +460,9 @@ return `<div class="doc">
 <h2>A. Agreement and Money</h2>
 <p>${cb}Agreed Value established (${CURB(n.v)}) and entered in Section 3.1 and Exhibit A (basis documented: survey, appraisal, or board-approved valuation)<br>
 ${cb}Exhibit A completed — Down Payment ${CURB(n.down)}, monthly ${CURB(n.monthly)}, Residual ${CURB(n.residual)} — cross-checked to total 100%<br>
+${n.custom?cb+'<b>CUSTOM payment terms</b> (down '+n.downPct+'%, monthly '+n.monthlyPct+'%, residual '+n.residualPct+'%) approved in writing by the Executive Director<br>':''}
 ${cb}Lease-Purchase Agreement fully completed (no blanks) and signed by both Parties<br>
-${cb}Down Payment (30% of Agreed Value) received and cleared<br>
+${cb}Down Payment (${n.custom?('approx. '+n.downPct):'30'}% of Agreed Value) received and cleared<br>
 ${cb}Security Deposit (${cur(CONFIG.leaseDeposit)}) received and cleared<br>
 ${cb}Payments recorded in Sage 50 and the tracking system; CPA notified of funding classification (Section 3.7)<br>
 ${cb}Florida sales tax treatment of lease payments and title transfer confirmed with CPA; collection/remittance method set before Exhibit A is finalized (dealer registration confirmed if required)<br>
